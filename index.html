@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Network Analyzer Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/dist/vis-network.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d1117;
+      color: #c9d1d9;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 20px 32px;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: 16px;
+      color: #58a6ff;
+      font-weight: normal;
+      letter-spacing: 1px;
+    }
+
+    header span {
+      font-size: 12px;
+      color: #484f58;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      height: calc(100vh - 61px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      border-right: 1px solid #21262d;
+      overflow-y: auto;
+      padding: 20px 16px;
+    }
+
+    .sidebar-section {
+      margin-bottom: 24px;
+    }
+
+    .sidebar-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #484f58;
+      margin-bottom: 10px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #161b22;
+      font-size: 12px;
+    }
+
+    .stat-row .label { color: #8b949e; }
+    .stat-row .value { color: #e6edf3; }
+
+    .device-card {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      font-size: 12px;
+    }
+
+    .device-card:hover { border-color: #58a6ff; }
+    .device-card.selected { border-color: #58a6ff; background: #1c2d3f; }
+
+    .device-card .ip {
+      color: #58a6ff;
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+
+    .device-card .type { color: #8b949e; }
+    .device-card .hostname { color: #3fb950; font-size: 11px; margin-top: 3px; }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: 10px;
+      margin-top: 4px;
+    }
+
+    .badge-router   { background: #1f3a5f; color: #58a6ff; }
+    .badge-host     { background: #1a2f1a; color: #3fb950; }
+    .badge-mobile   { background: #3a1f5f; color: #c084fc; }
+    .badge-tv       { background: #3a2a10; color: #d29922; }
+    .badge-printer  { background: #2a1f1f; color: #f85149; }
+
+    /* ── Main canvas ── */
+    .main {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #network-graph {
+      flex: 1;
+      background: #0d1117;
+    }
+
+    .bottom-bar {
+      border-top: 1px solid #21262d;
+      padding: 10px 20px;
+      font-size: 11px;
+      color: #484f58;
+      display: flex;
+      gap: 24px;
+    }
+
+    .bottom-bar span { color: #8b949e; }
+
+    /* ── Detail panel ── */
+    .detail-panel {
+      position: absolute;
+      top: 80px;
+      right: 20px;
+      width: 240px;
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 12px;
+      display: none;
+    }
+
+    .detail-panel.visible { display: block; }
+
+    .detail-panel h3 {
+      color: #58a6ff;
+      font-size: 13px;
+      margin-bottom: 12px;
+      font-weight: normal;
+    }
+
+    .detail-row {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 10px;
+    }
+
+    .detail-row .key { color: #484f58; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+    .detail-row .val { color: #e6edf3; margin-top: 2px; }
+
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: #484f58;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .close-btn:hover { color: #c9d1d9; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>◈ NETWORK ANALYZER</h1>
+  <span>— Cisco Networking Academy practice project</span>
+</header>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Scan Info</div>
+      <div class="stat-row"><span class="label">Network</span><span class="value" id="s-network">—</span></div>
+      <div class="stat-row"><span class="label">Mask</span><span class="value" id="s-mask">—</span></div>
+      <div class="stat-row"><span class="label">Scanned from</span><span class="value" id="s-ip">—</span></div>
+      <div class="stat-row"><span class="label">Active hosts</span><span class="value" id="s-active">—</span></div>
+      <div class="stat-row"><span class="label">Total possible</span><span class="value" id="s-total">—</span></div>
+      <div class="stat-row"><span class="label">Scan time</span><span class="value" id="s-time">—</span></div>
+      <div class="stat-row"><span class="label">Timestamp</span><span class="value" id="s-ts">—</span></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Devices</div>
+      <div id="device-list"></div>
+    </div>
+  </aside>
+
+  <!-- Graph -->
+  <main class="main">
+    <div id="network-graph"></div>
+    <div class="bottom-bar">
+      <span>Scroll to zoom · Drag to pan · Click a node for details</span>
+      <span id="b-count"></span>
+    </div>
+  </main>
+
+</div>
+
+<!-- Detail panel -->
+<div class="detail-panel" id="detail-panel">
+  <button class="close-btn" onclick="closeDetail()">✕</button>
+  <h3 id="d-ip">—</h3>
+  <div class="detail-row"><span class="key">Hostname</span><span class="val" id="d-hostname">—</span></div>
+  <div class="detail-row"><span class="key">Type</span><span class="val" id="d-type">—</span></div>
+  <div class="detail-row"><span class="key">MAC Address</span><span class="val" id="d-mac">—</span></div>
+</div>
+
+<script>
+  // Icon map per device type
+  const ICONS = {
+    "Router / Gateway": "🌐",
+    "Mobile device":    "📱",
+    "Printer":          "🖨️",
+    "Smart TV":         "📺",
+    "Host":             "💻"
+  };
+
+  const BADGE = {
+    "Router / Gateway": "badge-router",
+    "Mobile device":    "badge-mobile",
+    "Printer":          "badge-printer",
+    "Smart TV":         "badge-tv",
+    "Host":             "badge-host"
+  };
+
+  // Node colors per device type
+  const NODE_COLOR = {
+    "Router / Gateway": { background: "#1f3a5f", border: "#58a6ff" },
+    "Mobile device":    { background: "#3a1f5f", border: "#c084fc" },
+    "Printer":          { background: "#2a1f1f", border: "#f85149" },
+    "Smart TV":         { background: "#3a2a10", border: "#d29922" },
+    "Host":             { background: "#1a2f1a", border: "#3fb950" }
+  };
+
+  let network = null;
+  let scanData = null;
+
+  async function loadData() {
+    // Tries the real scan file first, falls back to the example
+    const files = ["scan_result.json", "scan_result.example.json"];
+    for (const file of files) {
+      try {
+        const res = await fetch(file);
+        if (res.ok) return await res.json();
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function formatTimestamp(ts) {
+    const d = new Date(ts);
+    return d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function buildSidebar(data) {
+    document.getElementById("s-network").textContent = data.network;
+    document.getElementById("s-mask").textContent    = data.subnet_mask;
+    document.getElementById("s-ip").textContent      = data.scanner_ip;
+    document.getElementById("s-active").textContent  = data.total_active;
+    document.getElementById("s-total").textContent   = data.total_possible;
+    document.getElementById("s-time").textContent    = data.duration_seconds + "s";
+    document.getElementById("s-ts").textContent      = formatTimestamp(data.timestamp);
+    document.getElementById("b-count").textContent   =
+      `${data.total_active} active hosts on ${data.network}`;
+
+    const list = document.getElementById("device-list");
+    data.devices.forEach((d, i) => {
+      const card = document.createElement("div");
+      card.className = "device-card";
+      card.id = `card-${i}`;
+      card.innerHTML = `
+        <div class="ip">${d.ip}</div>
+        <div class="type">${ICONS[d.type] || "💻"} <span class="badge ${BADGE[d.type] || "badge-host"}">${d.type}</span></div>
+        <div class="hostname">${d.hostname !== "unknown" ? d.hostname : ""}</div>
+      `;
+      card.onclick = () => selectDevice(i, d);
+      list.appendChild(card);
+    });
+  }
+
+  function buildGraph(data) {
+    const nodes = [];
+    const edges = [];
+
+    // Find the router to use as the center node
+    const router = data.devices.find(d => d.type === "Router / Gateway");
+    const routerIp = router ? router.ip : null;
+
+    data.devices.forEach((d, i) => {
+      const color = NODE_COLOR[d.type] || NODE_COLOR["Host"];
+      const icon  = ICONS[d.type] || "💻";
+      const isRouter = d.type === "Router / Gateway";
+
+      nodes.push({
+        id: i,
+        label: `${icon}\n${d.ip}`,
+        title: d.hostname !== "unknown" ? d.hostname : d.ip,
+        color: { background: color.background, border: color.border, highlight: { background: color.background, border: "#ffffff" } },
+        font: { color: "#c9d1d9", size: isRouter ? 14 : 12, face: "Courier New" },
+        size: isRouter ? 36 : 24,
+        shape: "box",
+        borderWidth: isRouter ? 2 : 1,
+        margin: 10
+      });
+
+      // Connect every non-router device to the router
+      if (routerIp && !isRouter) {
+        edges.push({
+          from: data.devices.findIndex(x => x.ip === routerIp),
+          to: i,
+          color: { color: "#21262d", highlight: "#58a6ff" },
+          width: 1
+        });
+      }
+    });
+
+    const container = document.getElementById("network-graph");
+    const graphData = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+    const options = {
+      physics: {
+        solver: "forceAtlas2Based",
+        forceAtlas2Based: { gravitationalConstant: -80, springLength: 120 },
+        stabilization: { iterations: 150 }
+      },
+      interaction: { hover: true, tooltipDelay: 100 },
+      layout: { improvedLayout: true }
+    };
+
+    network = new vis.Network(container, graphData, options);
+
+    // Click on a node → show detail panel and highlight sidebar card
+    network.on("click", params => {
+      if (params.nodes.length > 0) {
+        const idx = params.nodes[0];
+        selectDevice(idx, data.devices[idx]);
+      } else {
+        closeDetail();
+      }
+    });
+  }
+
+  function selectDevice(idx, d) {
+    // Highlight sidebar card
+    document.querySelectorAll(".device-card").forEach(c => c.classList.remove("selected"));
+    const card = document.getElementById(`card-${idx}`);
+    if (card) { card.classList.add("selected"); card.scrollIntoView({ block: "nearest" }); }
+
+    // Fill and show detail panel
+    document.getElementById("d-ip").textContent       = d.ip;
+    document.getElementById("d-hostname").textContent = d.hostname;
+    document.getElementById("d-type").textContent     = `${ICONS[d.type] || "💻"} ${d.type}`;
+    document.getElementById("d-mac").textContent      = d.mac || "n/a";
+    document.getElementById("detail-panel").classList.add("visible");
+
+    // Focus node on graph
+    if (network) network.focus(idx, { scale: 1.2, animation: { duration: 400 } });
+  }
+
+  function closeDetail() {
+    document.getElementById("detail-panel").classList.remove("visible");
+    document.querySelectorAll(".device-card").forEach(c => c.classList.remove("selected"));
+  }
+
+  // Boot
+  loadData().then(data => {
+    if (!data) { document.body.innerHTML = "<p style='padding:2rem;color:#f85149'>Could not load scan_result.json or scan_result.example.json</p>"; return; }
+    scanData = data;
+    buildSidebar(data);
+    buildGraph(data);
+  });
+</script>
+
+</body>
+</html>
