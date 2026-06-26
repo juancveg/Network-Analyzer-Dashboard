@@ -195,7 +195,14 @@
 
   let visNetwork = null;
 
-  function getData() {
+  async function loadData() {
+    // Try the real scan file first, fall back to embedded example data
+    try {
+      const res = await fetch("scan_result.json");
+      if (res.ok) return await res.json();
+    } catch (_) {}
+
+    // Fallback — embedded example so the dashboard always has something to show
     return {
       "timestamp": "2025-06-20T19:45:32.104821",
       "network": "192.168.1.0/24",
@@ -327,9 +334,10 @@
   }
 
   // Boot
-  const data = getData();
-  buildSidebar(data);
-  buildGraph(data);
+  loadData().then(data => {
+    buildSidebar(data);
+    buildGraph(data);
+  });
 </script>
 
 </body>
