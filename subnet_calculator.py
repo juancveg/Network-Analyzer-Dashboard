@@ -87,13 +87,13 @@ if __name__ == '__main__':
     print("=" * 65)
     
     # Ejemplo 1: información de una subred simple
-    print("\n📌 Ejemplo 1: Análisis de 192.168.1.0/24")
+    print("\nEjemplo 1: Análisis de 192.168.1.0/24")
     datos = calcular_subred('192.168.1.0', 24)
     for clave, valor in datos.items():
         print(f"  {clave:<18}: {valor}")
     
     # Ejemplo 2: VLSM con 3 departamentos
-    print("\n📌 Ejemplo 2: VLSM — Red 10.0.0.0/24")
+    print("\nEjemplo 2: VLSM — Red 10.0.0.0/24")
     print("  Necesidades: Ventas=50 hosts, IT=25 hosts, Gerencia=10 hosts")
     print()
     
