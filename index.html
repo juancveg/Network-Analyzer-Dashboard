@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Network Analyzer Dashboard</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/dist/vis-network.min.css">
+  <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -119,6 +118,9 @@
     #network-graph {
       flex: 1;
       background: #0d1117;
+      min-height: 400px;
+      height: 100%;
+      width: 100%;
     }
 
     .bottom-bar {
@@ -257,15 +259,25 @@
   let scanData = null;
 
   async function loadData() {
-    // Tries the real scan file first, falls back to the example
-    const files = ["scan_result.json", "scan_result.example.json"];
-    for (const file of files) {
-      try {
-        const res = await fetch(file);
-        if (res.ok) return await res.json();
-      } catch (_) {}
-    }
-    return null;
+    // Data is embedded directly to avoid CORS issues when opening locally.
+    // Replace this object with your own scan_result.json output.
+    return {
+      "timestamp": "2025-06-20T19:45:32.104821",
+      "network": "192.168.1.0/24",
+      "subnet_mask": "255.255.255.0",
+      "scanner_ip": "192.168.1.100",
+      "total_possible": 254,
+      "total_active": 6,
+      "duration_seconds": 2.7,
+      "devices": [
+        { "ip": "192.168.1.1",   "hostname": "home-router.local", "mac": "a1-b2-c3-d4-e5-f6", "type": "Router / Gateway" },
+        { "ip": "192.168.1.100", "hostname": "main-pc.local",     "mac": "n/a",                "type": "Host" },
+        { "ip": "192.168.1.101", "hostname": "unknown",           "mac": "b2-c3-d4-e5-f6-a1", "type": "Host" },
+        { "ip": "192.168.1.102", "hostname": "unknown",           "mac": "c3-d4-e5-f6-a1-b2", "type": "Mobile device" },
+        { "ip": "192.168.1.103", "hostname": "unknown",           "mac": "d4-e5-f6-a1-b2-c3", "type": "Mobile device" },
+        { "ip": "192.168.1.104", "hostname": "samsung-tv.local",  "mac": "e5-f6-a1-b2-c3-d4", "type": "Smart TV" }
+      ]
+    };
   }
 
   function formatTimestamp(ts) {
