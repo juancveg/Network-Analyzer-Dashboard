@@ -46,6 +46,8 @@ def get_arp_devices(network):
     # Read the ARP table — most reliable method on Windows since it shows
     # devices the OS has already talked to, regardless of ICMP settings.
     # Splitting by whitespace works regardless of language (ES/EN Windows).
+    # Skipping ff-ff-ff-ff-ff-ff filters out the broadcast address,
+    # which shows up in the ARP table but isn't a real device.
     devices = {}
 
     try:
@@ -56,6 +58,8 @@ def get_arp_devices(network):
             if len(parts) >= 3:
                 ip_str = parts[0]
                 mac = parts[1]
+                if mac == "ff-ff-ff-ff-ff-ff":
+                    continue
                 try:
                     ip = ipaddress.IPv4Address(ip_str)
                     if ip in network:
